@@ -1,12 +1,6 @@
-/* SPDX-License-Identifier: MIT
- *
- * Copyright (C) 2019 WireGuard LLC. All Rights Reserved.
- */
-
 package main
 
 import (
-	"strings"
 	"syscall"
 	"unsafe"
 
@@ -222,37 +216,6 @@ const (
 // DI_FLAGSEX is SP_DEVINSTALL_PARAMS.FlagsEx values
 type DI_FLAGSEX uint32
 
-const (
-	DI_FLAGSEX_CI_FAILED                DI_FLAGSEX = 0x00000004 // Failed to Load/Call class installer
-	DI_FLAGSEX_FINISHINSTALL_ACTION     DI_FLAGSEX = 0x00000008 // Class/co-installer wants to get a DIF_FINISH_INSTALL action in client context.
-	DI_FLAGSEX_DIDINFOLIST              DI_FLAGSEX = 0x00000010 // Did the Class Info List
-	DI_FLAGSEX_DIDCOMPATINFO            DI_FLAGSEX = 0x00000020 // Did the Compat Info List
-	DI_FLAGSEX_FILTERCLASSES            DI_FLAGSEX = 0x00000040
-	DI_FLAGSEX_SETFAILEDINSTALL         DI_FLAGSEX = 0x00000080
-	DI_FLAGSEX_DEVICECHANGE             DI_FLAGSEX = 0x00000100
-	DI_FLAGSEX_ALWAYSWRITEIDS           DI_FLAGSEX = 0x00000200
-	DI_FLAGSEX_PROPCHANGE_PENDING       DI_FLAGSEX = 0x00000400 // One or more device property sheets have had changes made to them, and need to have a DIF_PROPERTYCHANGE occur.
-	DI_FLAGSEX_ALLOWEXCLUDEDDRVS        DI_FLAGSEX = 0x00000800
-	DI_FLAGSEX_NOUIONQUERYREMOVE        DI_FLAGSEX = 0x00001000
-	DI_FLAGSEX_USECLASSFORCOMPAT        DI_FLAGSEX = 0x00002000 // Use the device's class when building compat drv list. (Ignored if DI_COMPAT_FROM_CLASS flag is specified.)
-	DI_FLAGSEX_NO_DRVREG_MODIFY         DI_FLAGSEX = 0x00008000 // Don't run AddReg and DelReg for device's software (driver) key.
-	DI_FLAGSEX_IN_SYSTEM_SETUP          DI_FLAGSEX = 0x00010000 // Installation is occurring during initial system setup.
-	DI_FLAGSEX_INET_DRIVER              DI_FLAGSEX = 0x00020000 // Driver came from Windows Update
-	DI_FLAGSEX_APPENDDRIVERLIST         DI_FLAGSEX = 0x00040000 // Cause SetupDiBuildDriverInfoList to append a new driver list to an existing list.
-	DI_FLAGSEX_PREINSTALLBACKUP         DI_FLAGSEX = 0x00080000 // not used
-	DI_FLAGSEX_BACKUPONREPLACE          DI_FLAGSEX = 0x00100000 // not used
-	DI_FLAGSEX_DRIVERLIST_FROM_URL      DI_FLAGSEX = 0x00200000 // build driver list from INF(s) retrieved from URL specified in SP_DEVINSTALL_PARAMS.DriverPath (empty string means Windows Update website)
-	DI_FLAGSEX_EXCLUDE_OLD_INET_DRIVERS DI_FLAGSEX = 0x00800000 // Don't include old Internet drivers when building a driver list. Ignored on Windows Vista and later.
-	DI_FLAGSEX_POWERPAGE_ADDED          DI_FLAGSEX = 0x01000000 // class installer added their own power page
-	DI_FLAGSEX_FILTERSIMILARDRIVERS     DI_FLAGSEX = 0x02000000 // only include similar drivers in class list
-	DI_FLAGSEX_INSTALLEDDRIVER          DI_FLAGSEX = 0x04000000 // only add the installed driver to the class or compat driver list.  Used in calls to SetupDiBuildDriverInfoList
-	DI_FLAGSEX_NO_CLASSLIST_NODE_MERGE  DI_FLAGSEX = 0x08000000 // Don't remove identical driver nodes from the class list
-	DI_FLAGSEX_ALTPLATFORM_DRVSEARCH    DI_FLAGSEX = 0x10000000 // Build driver list based on alternate platform information specified in associated file queue
-	DI_FLAGSEX_RESTART_DEVICE_ONLY      DI_FLAGSEX = 0x20000000 // only restart the device drivers are being installed on as opposed to restarting all devices using those drivers.
-	DI_FLAGSEX_RECURSIVESEARCH          DI_FLAGSEX = 0x40000000 // Tell SetupDiBuildDriverInfoList to do a recursive search
-	DI_FLAGSEX_SEARCH_PUBLISHED_INFS    DI_FLAGSEX = 0x80000000 // Tell SetupDiBuildDriverInfoList to do a "published INF" search
-)
-
 // ClassInstallHeader is the first member of any class install parameters structure. It contains the device installation request code that defines the format of the rest of the install parameters structure.
 type ClassInstallHeader struct {
 	size            uint32
@@ -269,20 +232,14 @@ func MakeClassInstallHeader(installFunction DI_FUNCTION) *ClassInstallHeader {
 type DICS_STATE uint32
 
 const (
-	DICS_ENABLE     DICS_STATE = 0x00000001 // The device is being enabled.
-	DICS_DISABLE    DICS_STATE = 0x00000002 // The device is being disabled.
 	DICS_PROPCHANGE DICS_STATE = 0x00000003 // The properties of the device have changed.
-	DICS_START      DICS_STATE = 0x00000004 // The device is being started (if the request is for the currently active hardware profile).
-	DICS_STOP       DICS_STATE = 0x00000005 // The device is being stopped. The driver stack will be unloaded and the CSCONFIGFLAG_DO_NOT_START flag will be set for the device.
 )
 
 // DICS_FLAG specifies the scope of a device property change
 type DICS_FLAG uint32
 
 const (
-	DICS_FLAG_GLOBAL         DICS_FLAG = 0x00000001 // make change in all hardware profiles
-	DICS_FLAG_CONFIGSPECIFIC DICS_FLAG = 0x00000002 // make change in specified profile only
-	DICS_FLAG_CONFIGGENERAL  DICS_FLAG = 0x00000004 // 1 or more hardware profile-specific changes to follow (obsolete)
+	DICS_FLAG_GLOBAL DICS_FLAG = 0x00000001 // make change in all hardware profiles
 )
 
 // PropChangeParams is a structure corresponding to a DIF_PROPERTYCHANGE install function.
@@ -293,262 +250,33 @@ type PropChangeParams struct {
 	HwProfile          uint32
 }
 
-// DI_REMOVEDEVICE specifies the scope of the device removal
-type DI_REMOVEDEVICE uint32
-
-const (
-	DI_REMOVEDEVICE_GLOBAL         DI_REMOVEDEVICE = 0x00000001 // Make this change in all hardware profiles. Remove information about the device from the registry.
-	DI_REMOVEDEVICE_CONFIGSPECIFIC DI_REMOVEDEVICE = 0x00000002 // Make this change to only the hardware profile specified by HwProfile. this flag only applies to root-enumerated devices. When Windows removes the device from the last hardware profile in which it was configured, Windows performs a global removal.
-)
-
-// RemoveDeviceParams is a structure corresponding to a DIF_REMOVE install function.
-type RemoveDeviceParams struct {
-	ClassInstallHeader ClassInstallHeader
-	Scope              DI_REMOVEDEVICE
-	HwProfile          uint32
-}
-
-// DrvInfoData is driver information structure (member of a driver info list that may be associated with a particular device instance, or (globally) with a device information set)
-type DrvInfoData struct {
-	size          uint32
-	DriverType    uint32
-	_             uintptr
-	description   [LINE_LEN]uint16
-	mfgName       [LINE_LEN]uint16
-	providerName  [LINE_LEN]uint16
-	DriverDate    windows.Filetime
-	DriverVersion uint64
-}
-
-func (data *DrvInfoData) GetDescription() string {
-	return windows.UTF16ToString(data.description[:])
-}
-
-func (data *DrvInfoData) SetDescription(description string) error {
-	str, err := syscall.UTF16FromString(description)
-	if err != nil {
-		return err
-	}
-	copy(data.description[:], str)
-	return nil
-}
-
-func (data *DrvInfoData) GetMfgName() string {
-	return windows.UTF16ToString(data.mfgName[:])
-}
-
-func (data *DrvInfoData) SetMfgName(mfgName string) error {
-	str, err := syscall.UTF16FromString(mfgName)
-	if err != nil {
-		return err
-	}
-	copy(data.mfgName[:], str)
-	return nil
-}
-
-func (data *DrvInfoData) GetProviderName() string {
-	return windows.UTF16ToString(data.providerName[:])
-}
-
-func (data *DrvInfoData) SetProviderName(providerName string) error {
-	str, err := syscall.UTF16FromString(providerName)
-	if err != nil {
-		return err
-	}
-	copy(data.providerName[:], str)
-	return nil
-}
-
-// IsNewer method returns true if DrvInfoData date and version is newer than supplied parameters.
-func (data *DrvInfoData) IsNewer(driverDate windows.Filetime, driverVersion uint64) bool {
-	if data.DriverDate.HighDateTime > driverDate.HighDateTime {
-		return true
-	}
-	if data.DriverDate.HighDateTime < driverDate.HighDateTime {
-		return false
-	}
-
-	if data.DriverDate.LowDateTime > driverDate.LowDateTime {
-		return true
-	}
-	if data.DriverDate.LowDateTime < driverDate.LowDateTime {
-		return false
-	}
-
-	if data.DriverVersion > driverVersion {
-		return true
-	}
-	if data.DriverVersion < driverVersion {
-		return false
-	}
-
-	return false
-}
-
-// DrvInfoDetailData is driver information details structure (provides detailed information about a particular driver information structure)
-type DrvInfoDetailData struct {
-	size            uint32 // On input, this must be exactly the sizeof(DrvInfoDetailData). On output, we set this member to the actual size of structure data.
-	InfDate         windows.Filetime
-	compatIDsOffset uint32
-	compatIDsLength uint32
-	_               uintptr
-	sectionName     [LINE_LEN]uint16
-	infFileName     [windows.MAX_PATH]uint16
-	drvDescription  [LINE_LEN]uint16
-	hardwareID      [1]uint16
-}
-
-func (data *DrvInfoDetailData) GetSectionName() string {
-	return windows.UTF16ToString(data.sectionName[:])
-}
-
-func (data *DrvInfoDetailData) GetInfFileName() string {
-	return windows.UTF16ToString(data.infFileName[:])
-}
-
-func (data *DrvInfoDetailData) GetDrvDescription() string {
-	return windows.UTF16ToString(data.drvDescription[:])
-}
-
-func (data *DrvInfoDetailData) GetHardwareID() string {
-	if data.compatIDsOffset > 1 {
-		bufW := data.getBuf()
-		return windows.UTF16ToString(bufW[:wcslen(bufW)])
-	}
-
-	return ""
-}
-
-func (data *DrvInfoDetailData) GetCompatIDs() []string {
-	a := make([]string, 0)
-
-	if data.compatIDsLength > 0 {
-		bufW := data.getBuf()
-		bufW = bufW[data.compatIDsOffset : data.compatIDsOffset+data.compatIDsLength]
-		for i := 0; i < len(bufW); {
-			j := i + wcslen(bufW[i:])
-			if i < j {
-				a = append(a, windows.UTF16ToString(bufW[i:j]))
-			}
-			i = j + 1
-		}
-	}
-
-	return a
-}
-
-func (data *DrvInfoDetailData) getBuf() []uint16 {
-	length := (data.size - uint32(unsafe.Offsetof(data.hardwareID))) / 2
-	sl := struct {
-		addr *uint16
-		len  int
-		cap  int
-	}{&data.hardwareID[0], int(length), int(length)}
-	return *(*[]uint16)(unsafe.Pointer(&sl))
-}
-
-// IsCompatible method tests if given hardware ID matches the driver or is listed on the compatible ID list.
-func (data *DrvInfoDetailData) IsCompatible(hwid string) bool {
-	hwidLC := strings.ToLower(hwid)
-	if strings.EqualFold(data.GetHardwareID(), hwidLC) {
-		return true
-	}
-	a := data.GetCompatIDs()
-	for i := range a {
-		if strings.EqualFold(a[i], hwidLC) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// DICD flags control SetupDiCreateDeviceInfo
-type DICD uint32
-
-const (
-	DICD_GENERATE_ID       DICD = 0x00000001
-	DICD_INHERIT_CLASSDRVS DICD = 0x00000002
-)
-
-// SPDIT flags to distinguish between class drivers and
-// device drivers.
-// (Passed in 'DriverType' parameter of driver information list APIs)
-type SPDIT uint32
-
-const (
-	SPDIT_NODRIVER     SPDIT = 0x00000000
-	SPDIT_CLASSDRIVER  SPDIT = 0x00000001
-	SPDIT_COMPATDRIVER SPDIT = 0x00000002
-)
-
 // DIGCF flags control what is included in the device information set built by SetupDiGetClassDevs
 type DIGCF uint32
 
 const (
-	DIGCF_DEFAULT         DIGCF = 0x00000001 // only valid with DIGCF_DEVICEINTERFACE
-	DIGCF_PRESENT         DIGCF = 0x00000002
-	DIGCF_ALLCLASSES      DIGCF = 0x00000004
-	DIGCF_PROFILE         DIGCF = 0x00000008
-	DIGCF_DEVICEINTERFACE DIGCF = 0x00000010
+	// DIGCF_DEFAULT         DIGCF = 0x00000001 // only valid with DIGCF_DEVICEINTERFACE
+	DIGCF_PRESENT    DIGCF = 0x00000002
+	DIGCF_ALLCLASSES DIGCF = 0x00000004
+	// DIGCF_PROFILE         DIGCF = 0x00000008
+	// DIGCF_DEVICEINTERFACE DIGCF = 0x00000010
 )
 
 // DIREG specifies values for SetupDiCreateDevRegKey, SetupDiOpenDevRegKey, and SetupDiDeleteDevRegKey.
 type DIREG uint32
 
 const (
-	DIREG_DEV  DIREG = 0x00000001 // Open/Create/Delete device key
-	DIREG_DRV  DIREG = 0x00000002 // Open/Create/Delete driver key
-	DIREG_BOTH DIREG = 0x00000004 // Delete both driver and Device key
+	DIREG_DEV DIREG = 0x00000001 // Open/Create/Delete device key
 )
 
-// SPDRP specifies device registry property codes
-// (Codes marked as read-only (R) may only be used for
-// SetupDiGetDeviceRegistryProperty)
-//
-// These values should cover the same set of registry properties
-// as defined by the CM_DRP codes in cfgmgr32.h.
-//
 // Note that SPDRP codes are zero based while CM_DRP codes are one based!
 type SPDRP uint32
 
 const (
 	SPDRP_DEVICEDESC                  SPDRP = 0x00000000 // DeviceDesc (R/W)
-	SPDRP_HARDWAREID                  SPDRP = 0x00000001 // HardwareID (R/W)
-	SPDRP_COMPATIBLEIDS               SPDRP = 0x00000002 // CompatibleIDs (R/W)
-	SPDRP_SERVICE                     SPDRP = 0x00000004 // Service (R/W)
-	SPDRP_CLASS                       SPDRP = 0x00000007 // Class (R--tied to ClassGUID)
-	SPDRP_CLASSGUID                   SPDRP = 0x00000008 // ClassGUID (R/W)
-	SPDRP_DRIVER                      SPDRP = 0x00000009 // Driver (R/W)
 	SPDRP_CONFIGFLAGS                 SPDRP = 0x0000000A // ConfigFlags (R/W)
-	SPDRP_MFG                         SPDRP = 0x0000000B // Mfg (R/W)
 	SPDRP_FRIENDLYNAME                SPDRP = 0x0000000C // FriendlyName (R/W)
 	SPDRP_LOCATION_INFORMATION        SPDRP = 0x0000000D // LocationInformation (R/W)
 	SPDRP_PHYSICAL_DEVICE_OBJECT_NAME SPDRP = 0x0000000E // PhysicalDeviceObjectName (R)
-	SPDRP_CAPABILITIES                SPDRP = 0x0000000F // Capabilities (R)
-	SPDRP_UI_NUMBER                   SPDRP = 0x00000010 // UiNumber (R)
-	SPDRP_UPPERFILTERS                SPDRP = 0x00000011 // UpperFilters (R/W)
-	SPDRP_LOWERFILTERS                SPDRP = 0x00000012 // LowerFilters (R/W)
-	SPDRP_BUSTYPEGUID                 SPDRP = 0x00000013 // BusTypeGUID (R)
-	SPDRP_LEGACYBUSTYPE               SPDRP = 0x00000014 // LegacyBusType (R)
-	SPDRP_BUSNUMBER                   SPDRP = 0x00000015 // BusNumber (R)
-	SPDRP_ENUMERATOR_NAME             SPDRP = 0x00000016 // Enumerator Name (R)
-	SPDRP_SECURITY                    SPDRP = 0x00000017 // Security (R/W, binary form)
-	SPDRP_SECURITY_SDS                SPDRP = 0x00000018 // Security (W, SDS form)
-	SPDRP_DEVTYPE                     SPDRP = 0x00000019 // Device Type (R/W)
-	SPDRP_EXCLUSIVE                   SPDRP = 0x0000001A // Device is exclusive-access (R/W)
-	SPDRP_CHARACTERISTICS             SPDRP = 0x0000001B // Device Characteristics (R/W)
-	SPDRP_ADDRESS                     SPDRP = 0x0000001C // Device Address (R)
-	SPDRP_UI_NUMBER_DESC_FORMAT       SPDRP = 0x0000001D // UiNumberDescFormat (R/W)
-	SPDRP_DEVICE_POWER_DATA           SPDRP = 0x0000001E // Device Power Data (R)
-	SPDRP_REMOVAL_POLICY              SPDRP = 0x0000001F // Removal Policy (R)
-	SPDRP_REMOVAL_POLICY_HW_DEFAULT   SPDRP = 0x00000020 // Hardware Removal Policy (R)
-	SPDRP_REMOVAL_POLICY_OVERRIDE     SPDRP = 0x00000021 // Removal Policy Override (RW)
-	SPDRP_INSTALL_STATE               SPDRP = 0x00000022 // Device Install State (R)
-	SPDRP_LOCATION_PATHS              SPDRP = 0x00000023 // Device Location Paths (R)
-	SPDRP_BASE_CONTAINERID            SPDRP = 0x00000024 // Base ContainerID (R)
-
-	SPDRP_MAXIMUM_PROPERTY SPDRP = 0x00000025 // Upper bound on ordinals
 )
 
 type DEVPROPKEY struct {
