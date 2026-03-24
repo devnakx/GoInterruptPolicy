@@ -545,7 +545,18 @@ func RunDialog(owner walk.Form, devices []Device) (int, Device, error) {
 func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 	var children, partThread, partCore, partNUMA, partGroup, partCache []Widget
 	var lastEfficiencyClass, lastNumaNodeIndex, lastLastLevelCache byte
-	var cpuCount, numaCount, llcCount int
+	var cpuCount, globalCoreCount, numaCount, llcCount int
+	useGlobalCoreIndex := isAMD() && cs.LastLevelCache
+	nextCoreTitle := func() string {
+		if useGlobalCoreIndex {
+			title := fmt.Sprintf("Core %d", globalCoreCount)
+			globalCoreCount++
+			return title
+		}
+		title := fmt.Sprintf("Core %d", cpuCount)
+		cpuCount++
+		return title
+	}
 
 	checkboxlist.List = make([]*walk.CheckBox, len(cs.CPU))
 	for i, cpuThread := range cs.CPU {
@@ -558,14 +569,13 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 
 		if len(partThread) != 0 && cpuThread.CoreIndex == cpuThread.LogicalProcessorIndex {
 			partCore = append(partCore, GroupBox{
-				Title:     fmt.Sprintf("Core %d", cpuCount),
+				Title:     nextCoreTitle(),
 				Alignment: AlignHCenterVNear,
 				Layout: VBox{
 					Margins: CalculateMargins(len(partThread)),
 				},
 				Children: partThread,
 			})
-			cpuCount++
 			partThread = nil
 		}
 
@@ -587,7 +597,7 @@ func (checkboxlist *CheckBoxList) create(bits *Bits) []Widget {
 
 		if isLastItem {
 			partCore = append(partCore, GroupBox{
-				Title:     fmt.Sprintf("Core %d", cpuCount),
+				Title:     nextCoreTitle(),
 				Alignment: AlignHCenterVNear,
 				Layout: VBox{
 					Margins: CalculateMargins(len(partThread)),
