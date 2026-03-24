@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -136,6 +137,10 @@ func main() {
 	AllDevices := devices
 
 	var LineEditSearch *walk.LineEdit
+	var autoAdjustColumnsAction *walk.Action
+	var devicePolicyAction *walk.Action
+	var hardwarePropertiesAction *walk.Action
+	var registryParametersAction *walk.Action
 	mw := &MyMainWindow{
 		model: &Model{items: devices},
 		tv:    &walk.TableView{},
@@ -207,13 +212,15 @@ func main() {
 				MultiSelection:      true,
 				ContextMenuItems: []MenuItem{
 					Action{
-						Text: "&Auto adjust columns",
+						AssignTo: &autoAdjustColumnsAction,
+						Text:     "&Auto adjust columns",
 						OnTriggered: func() {
 							mw.autoAdjustColumns(true)
 						},
 					},
 					Action{
-						Text: "&Device policy",
+						AssignTo: &devicePolicyAction,
+						Text:     "&Device policy",
 						OnTriggered: func() {
 							SelectedIndexes := mw.tv.SelectedIndexes()
 							if len(SelectedIndexes) != 0 {
@@ -245,7 +252,8 @@ func main() {
 					},
 
 					Action{
-						Text: "&Hardware properties",
+						AssignTo: &hardwarePropertiesAction,
+						Text:     "&Hardware properties",
 						OnTriggered: func() {
 							SelectedIndexes := mw.tv.SelectedIndexes()
 							if len(SelectedIndexes) != 0 {
@@ -260,7 +268,8 @@ func main() {
 					},
 
 					Action{
-						Text: "&Registry parameters",
+						AssignTo: &registryParametersAction,
+						Text:     "&Registry parameters",
 						OnTriggered: func() {
 							index := mw.tv.CurrentIndex()
 							d := mw.tv.Model().(*Model).items[index]
@@ -445,6 +454,67 @@ func main() {
 	}).Create(); err != nil {
 		log.Println(err)
 		return
+	}
+	isHeaderContextMenu := func() bool {
+		value := reflect.ValueOf(mw.tv).Elem()
+		headerHandles := []win.HWND{
+			func() win.HWND {
+				field := value.FieldByName("hwndFrozenHdr")
+				if !field.IsValid() || !field.CanAddr() {
+					return 0
+				}
+				return win.HWND(reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Uint())
+			}(),
+			func() win.HWND {
+				field := value.FieldByName("hwndNormalHdr")
+				if !field.IsValid() || !field.CanAddr() {
+					return 0
+				}
+				return win.HWND(reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Uint())
+			}(),
+		}
+
+		var cursor win.POINT
+		if !win.GetCursorPos(&cursor) {
+			return false
+		}
+
+		for _, headerHandle := range headerHandles {
+			if headerHandle == 0 {
+				continue
+			}
+			var rect win.RECT
+			if !win.GetWindowRect(headerHandle, &rect) {
+				continue
+			}
+			if cursor.X >= rect.Left && cursor.X < rect.Right && cursor.Y >= rect.Top && cursor.Y < rect.Bottom {
+				return true
+			}
+		}
+
+		return false
+	}
+	updateContextMenuVisibility := func() {
+		headerMenu := isHeaderContextMenu()
+		for _, action := range []*walk.Action{autoAdjustColumnsAction} {
+			if action == nil {
+				continue
+			}
+			if err := action.SetVisible(headerMenu); err != nil {
+				log.Println(err)
+			}
+		}
+		for _, action := range []*walk.Action{devicePolicyAction, hardwarePropertiesAction, registryParametersAction} {
+			if action == nil {
+				continue
+			}
+			if err := action.SetVisible(!headerMenu); err != nil {
+				log.Println(err)
+			}
+		}
+	}
+	if contextMenu := mw.tv.ContextMenu(); contextMenu != nil {
+		contextMenu.InitPopup().Attach(updateContextMenuVisibility)
 	}
 	mw.autoAdjustColumns(true)
 	applyDefaultSort()
