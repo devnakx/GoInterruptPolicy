@@ -20,6 +20,12 @@ import (
 
 var cs CpuSets
 
+const (
+	tableColumnContentPadding = 16
+	tableColumnHeaderPadding  = 28
+	tableAutoWidthRowLimit    = 1200
+)
+
 func main() {
 	cs.Init()
 
@@ -120,9 +126,11 @@ func main() {
 	}
 	defer SetupDiDestroyDeviceInfoList(handle)
 
-	// Sortiert das Array nach Namen
 	sort.Slice(devices, func(i, j int) bool {
-		return devices[i].DeviceDesc < devices[j].DeviceDesc
+		if devices[i].LocationInformation == devices[j].LocationInformation {
+			return devices[i].DeviceDesc < devices[j].DeviceDesc
+		}
+		return devices[i].LocationInformation > devices[j].LocationInformation
 	})
 
 	AllDevices := devices
@@ -131,6 +139,15 @@ func main() {
 	mw := &MyMainWindow{
 		model: &Model{items: devices},
 		tv:    &walk.TableView{},
+	}
+	applyDefaultSort := func() {
+		sorter, ok := mw.tv.TableModel().(walk.Sorter)
+		if !ok {
+			return
+		}
+		if err := sorter.Sort(2, walk.SortDescending); err != nil {
+			log.Println(err)
+		}
 	}
 	if err := (MainWindow{
 		AssignTo: &mw.MainWindow,
@@ -159,6 +176,8 @@ func main() {
 							text := strings.ToLower(LineEditSearch.Text())
 							if text == "" {
 								mw.tv.SetModel(&Model{items: AllDevices})
+								applyDefaultSort()
+								mw.autoAdjustColumns(false)
 								mw.sbi.SetText(fmt.Sprintf("%d Devices Found", len(devices)))
 							} else {
 								newDevices := []Device{}
@@ -171,6 +190,8 @@ func main() {
 									}
 								}
 								mw.tv.SetModel(&Model{items: newDevices})
+								applyDefaultSort()
+								mw.autoAdjustColumns(false)
 								mw.sbi.SetText(fmt.Sprintf("%d Devices Found", len(newDevices)))
 							}
 						},
@@ -185,6 +206,12 @@ func main() {
 				LastColumnStretched: true,
 				MultiSelection:      true,
 				ContextMenuItems: []MenuItem{
+					Action{
+						Text: "&Auto adjust columns",
+						OnTriggered: func() {
+							mw.autoAdjustColumns(true)
+						},
+					},
 					Action{
 						Text: "&Device policy",
 						OnTriggered: func() {
@@ -205,7 +232,7 @@ func main() {
 									return
 								}
 
-								mw.restartPopup = true
+								// mw.restartPopup = true
 								for _, selectionIndex := range SelectedIndexes {
 									mw.tv.Model().(*Model).items[selectionIndex] = mw.SetNewDevice(&mw.tv.Model().(*Model).items[selectionIndex], &d)
 								}
@@ -244,12 +271,17 @@ func main() {
 				Model:    mw.model,
 				AssignTo: &mw.tv,
 				OnKeyUp: func(key walk.Key) {
+					model, ok := mw.tv.Model().(*Model)
+					if !ok {
+						return
+					}
+
 					i := mw.tv.CurrentIndex()
 					if i == -1 {
 						i = 0
 					}
-					for ; i < len(mw.model.items); i++ {
-						item := &mw.model.items[i]
+					for ; i < len(model.items); i++ {
+						item := &model.items[i]
 						if item.DeviceDesc != "" && key.String() == item.DeviceDesc[0:1] {
 							if err := mw.tv.SetCurrentIndex(i); err != nil {
 								log.Println(err)
@@ -333,7 +365,11 @@ func main() {
 							return strings.Join(result, ",")
 						},
 						LessFunc: func(i, j int) bool {
-							return mw.model.items[i].AssignmentSetOverride < mw.model.items[j].AssignmentSetOverride
+							model, ok := mw.tv.Model().(*Model)
+							if !ok || model == nil {
+								return false
+							}
+							return model.items[i].AssignmentSetOverride < model.items[j].AssignmentSetOverride
 						},
 					},
 					{
@@ -362,7 +398,11 @@ func main() {
 							return interruptType(value.(Bits))
 						},
 						LessFunc: func(i, j int) bool {
-							return mw.model.items[i].InterruptTypeMap < mw.model.items[j].InterruptTypeMap
+							model, ok := mw.tv.Model().(*Model)
+							if !ok || model == nil {
+								return false
+							}
+							return model.items[i].InterruptTypeMap < model.items[j].InterruptTypeMap
 						},
 					},
 					{
@@ -406,19 +446,10 @@ func main() {
 		log.Println(err)
 		return
 	}
+	mw.autoAdjustColumns(true)
+	applyDefaultSort()
 
-	var maxDeviceDesc int
-	for i := range devices {
-		newDeviceDesc := mw.TextWidthSize(devices[i].DeviceDesc)
-		if maxDeviceDesc < newDeviceDesc {
-			maxDeviceDesc = newDeviceDesc
-		}
-	}
-	if maxDeviceDesc < 150 {
-		mw.tv.Columns().At(0).SetWidth(maxDeviceDesc)
-	}
-
-	mw.Show()
+	win.ShowWindow(mw.Handle(), win.SW_SHOWMAXIMIZED)
 	mw.tv.SetFocus()
 	mw.Run()
 }
@@ -429,6 +460,7 @@ type MyMainWindow struct {
 	model        *Model
 	sbi          *walk.StatusBarItem
 	restartPopup bool
+	autoWidths   []int
 }
 
 func (mw *MyMainWindow) lb_ItemActivated() {
@@ -444,7 +476,7 @@ func (mw *MyMainWindow) lb_ItemActivated() {
 		return
 	}
 
-	mw.restartPopup = true
+	// mw.restartPopup = true
 	mw.tv.Model().(*Model).items[currentIndex] = mw.SetNewDevice(&mw.tv.Model().(*Model).items[currentIndex], &d)
 
 	mw.tv.UpdateItem(currentIndex)
@@ -525,6 +557,264 @@ func (mw *MyMainWindow) TextWidthSize(text string) int {
 	}
 
 	return bounds.Size().Width
+}
+
+type tableAutoColumn struct {
+	Title    string
+	MinWidth int
+	MaxWidth int
+	Value    func(Device) string
+}
+
+type tableAutoWidthColumnInput struct {
+	Title    string
+	Values   []string
+	MinWidth int
+	MaxWidth int
+}
+
+func splitCellLines(value string) []string {
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	lines := strings.Split(value, "\n")
+	if len(lines) == 0 {
+		return []string{""}
+	}
+	return lines
+}
+
+func calculateAutoColumnWidths(columns []tableAutoWidthColumnInput, measure func(string) int, cellPadding int, headerPadding int) []int {
+	widths := make([]int, len(columns))
+	for i, column := range columns {
+		maxWidth := measure(column.Title) + headerPadding
+		for _, value := range column.Values {
+			for _, line := range splitCellLines(value) {
+				candidate := measure(line) + cellPadding
+				if candidate > maxWidth {
+					maxWidth = candidate
+				}
+				if column.MaxWidth > 0 && maxWidth >= column.MaxWidth {
+					maxWidth = column.MaxWidth
+					break
+				}
+			}
+			if column.MaxWidth > 0 && maxWidth >= column.MaxWidth {
+				break
+			}
+		}
+		if maxWidth < column.MinWidth {
+			maxWidth = column.MinWidth
+		}
+		if column.MaxWidth > 0 && maxWidth > column.MaxWidth {
+			maxWidth = column.MaxWidth
+		}
+		widths[i] = maxWidth
+	}
+	return widths
+}
+
+func (mw *MyMainWindow) tableAutoColumns() []tableAutoColumn {
+	return []tableAutoColumn{
+		{
+			Title:    "Name",
+			MinWidth: 120,
+			MaxWidth: 600,
+			Value: func(device Device) string {
+				return device.DeviceDesc
+			},
+		},
+		{
+			Title:    "Friendly Name",
+			MinWidth: 120,
+			MaxWidth: 600,
+			Value: func(device Device) string {
+				return device.FriendlyName
+			},
+		},
+		{
+			Title:    "Location Info",
+			MinWidth: 150,
+			MaxWidth: 640,
+			Value: func(device Device) string {
+				return device.LocationInformation
+			},
+		},
+		{
+			Title:    "MSI Mode",
+			MinWidth: 72,
+			MaxWidth: 120,
+			Value: func(device Device) string {
+				switch device.MsiSupported {
+				case 0:
+					return "✖"
+				case 1:
+					return "✔"
+				default:
+					return ""
+				}
+			},
+		},
+		{
+			Title:    "Device Policy",
+			MinWidth: 140,
+			MaxWidth: 360,
+			Value: func(device Device) string {
+				switch device.DevicePolicy {
+				case IrqPolicyMachineDefault:
+					return "Default"
+				case IrqPolicyAllCloseProcessors:
+					return "All Close Proc"
+				case IrqPolicyOneCloseProcessor:
+					return "One Close Proc"
+				case IrqPolicyAllProcessorsInMachine:
+					return "All Proc in Machine"
+				case IrqPolicySpecifiedProcessors:
+					return "Specified Proc"
+				case IrqPolicySpreadMessagesAcrossAllProcessors:
+					return "Spread Messages Across All Proc"
+				default:
+					return fmt.Sprintf("%d", device.DevicePolicy)
+				}
+			},
+		},
+		{
+			Title:    "Specified Processor",
+			MinWidth: 150,
+			MaxWidth: 620,
+			Value: func(device Device) string {
+				if device.AssignmentSetOverride == ZeroBit {
+					return ""
+				}
+				bits := device.AssignmentSetOverride
+				result := make([]string, 0, len(CPUMap))
+				for bit, cpu := range CPUMap {
+					if Has(bit, bits) {
+						result = append(result, cpu)
+					}
+				}
+				result, err := sortNumbers(result)
+				if err != nil {
+					log.Println(err)
+				}
+				return strings.Join(result, ",")
+			},
+		},
+		{
+			Title:    "Device Priority",
+			MinWidth: 120,
+			MaxWidth: 220,
+			Value: func(device Device) string {
+				switch device.DevicePriority {
+				case 0:
+					return "Undefined"
+				case 1:
+					return "Low"
+				case 2:
+					return "Normal"
+				case 3:
+					return "High"
+				default:
+					return fmt.Sprintf("%d", device.DevicePriority)
+				}
+			},
+		},
+		{
+			Title:    "Interrupt Type",
+			MinWidth: 110,
+			MaxWidth: 220,
+			Value: func(device Device) string {
+				return interruptType(device.InterruptTypeMap)
+			},
+		},
+		{
+			Title:    "MSI Limit",
+			MinWidth: 90,
+			MaxWidth: 160,
+			Value: func(device Device) string {
+				if device.MessageNumberLimit == 0 {
+					return ""
+				}
+				return fmt.Sprintf("%d", device.MessageNumberLimit)
+			},
+		},
+		{
+			Title:    "Max MSI Limit",
+			MinWidth: 110,
+			MaxWidth: 180,
+			Value: func(device Device) string {
+				if device.MaxMSILimit == 0 {
+					return ""
+				}
+				return fmt.Sprintf("%d", device.MaxMSILimit)
+			},
+		},
+		{
+			Title:    "DevObj Name",
+			MinWidth: 160,
+			MaxWidth: 520,
+			Value: func(device Device) string {
+				return device.DevObjName
+			},
+		},
+	}
+}
+
+func (mw *MyMainWindow) autoAdjustColumns(force bool) {
+	model, ok := mw.tv.Model().(*Model)
+	if !ok || model == nil {
+		return
+	}
+
+	autoColumns := mw.tableAutoColumns()
+	columnInputs := make([]tableAutoWidthColumnInput, len(autoColumns))
+	valueRowLimit := len(model.items)
+	if valueRowLimit > tableAutoWidthRowLimit {
+		valueRowLimit = tableAutoWidthRowLimit
+	}
+	for i, column := range autoColumns {
+		columnInputs[i] = tableAutoWidthColumnInput{
+			Title:    column.Title,
+			MinWidth: column.MinWidth,
+			MaxWidth: column.MaxWidth,
+			Values:   make([]string, 0, valueRowLimit),
+		}
+		for rowIndex := 0; rowIndex < valueRowLimit; rowIndex++ {
+			columnInputs[i].Values = append(columnInputs[i].Values, column.Value(model.items[rowIndex]))
+		}
+	}
+
+	widthCache := map[string]int{}
+	measure := func(text string) int {
+		if width, ok := widthCache[text]; ok {
+			return width
+		}
+		width := mw.TextWidthSize(text)
+		widthCache[text] = width
+		return width
+	}
+
+	targetWidths := calculateAutoColumnWidths(columnInputs, measure, tableColumnContentPadding, tableColumnHeaderPadding)
+
+	if !force && len(mw.autoWidths) == len(targetWidths) {
+		changed := false
+		for i := range targetWidths {
+			if mw.autoWidths[i] != targetWidths[i] {
+				changed = true
+				break
+			}
+		}
+		if !changed {
+			return
+		}
+	}
+
+	columns := mw.tv.Columns()
+	for i := 0; i < len(targetWidths) && i < columns.Len(); i++ {
+		if columns.At(i).Width() == targetWidths[i] {
+			continue
+		}
+		columns.At(i).SetWidth(targetWidths[i])
+	}
+	mw.autoWidths = targetWidths
 }
 
 type Model struct {
