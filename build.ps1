@@ -30,7 +30,7 @@ if ($rest -ne "") {
 }
 
 # https://github.com/josephspurrier/goversioninfo#command-line-flags
-goversioninfo `
+goversioninfo -64 `
     -file-version="$versionNumber" `
     -ver-major="$major" `
     -ver-minor="$minor" `
@@ -45,7 +45,7 @@ goversioninfo `
 while ($true) {
     Clear-Host
 
-    go-critic check -enableAll -disable "#experimental,#opinionated,#commentedOutCode" ./... 2>$null
+    gocritic check -enableAll -disable "#experimental,#opinionated,#commentedOutCode" ./... 2>$null
 
     if (Test-Path "$filename.exe") {
         $beforeSize = (Get-Item "$filename.exe").Length
