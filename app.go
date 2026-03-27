@@ -714,6 +714,14 @@ func (mw *MyMainWindow) tableAutoColumns() []tableAutoColumn {
 			},
 		},
 		{
+			Title:    "Class",
+			MinWidth: 90,
+			MaxWidth: 220,
+			Value: func(device Device) string {
+				return device.Class
+			},
+		},
+		{
 			Title:    "Location Info",
 			MinWidth: 150,
 			MaxWidth: 640,
@@ -828,6 +836,14 @@ func (mw *MyMainWindow) tableAutoColumns() []tableAutoColumn {
 					return ""
 				}
 				return fmt.Sprintf("%d", device.MaxMSILimit)
+			},
+		},
+		{
+			Title:    "IRQ Lanes",
+			MinWidth: 90,
+			MaxWidth: 90,
+			Value: func(device Device) string {
+				return strings.Join(device.IRQLanes, ", ")
 			},
 		},
 		{
