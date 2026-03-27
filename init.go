@@ -131,3 +131,17 @@ func btoi16(val []byte) uint16 {
 	}
 	return r
 }
+
+func ToLittleEndian(v uint64) string {
+	if v == 0 {
+		return "00"
+	}
+	var b [8]byte
+	i := 0
+	for v > 0 {
+		b[i] = byte(v & 0xff)
+		v >>= 8
+		i++
+	}
+	return hex.EncodeToString(b[:i])
+}
