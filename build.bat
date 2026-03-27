@@ -35,5 +35,5 @@ IF %diffSize% EQU 0 (
 : Run
 @REM IF %ERRORLEVEL% EQU 0 %filename%.exe
 
-PAUSE
-GOTO loop
+@REM PAUSE
+@REM GOTO loop
