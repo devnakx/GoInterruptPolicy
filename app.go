@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -137,7 +136,6 @@ func main() {
 	AllDevices := devices
 
 	var LineEditSearch *walk.LineEdit
-	var autoAdjustColumnsAction *walk.Action
 	var devicePolicyAction *walk.Action
 	var hardwarePropertiesAction *walk.Action
 	var registryParametersAction *walk.Action
@@ -211,13 +209,6 @@ func main() {
 				LastColumnStretched: true,
 				MultiSelection:      true,
 				ContextMenuItems: []MenuItem{
-					Action{
-						AssignTo: &autoAdjustColumnsAction,
-						Text:     "&Auto adjust columns",
-						OnTriggered: func() {
-							mw.autoAdjustColumns(true)
-						},
-					},
 					Action{
 						AssignTo: &devicePolicyAction,
 						Text:     "&Device policy",
@@ -467,67 +458,6 @@ func main() {
 	}).Create(); err != nil {
 		log.Println(err)
 		return
-	}
-	isHeaderContextMenu := func() bool {
-		value := reflect.ValueOf(mw.tv).Elem()
-		headerHandles := []win.HWND{
-			func() win.HWND {
-				field := value.FieldByName("hwndFrozenHdr")
-				if !field.IsValid() || !field.CanAddr() {
-					return 0
-				}
-				return win.HWND(reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Uint())
-			}(),
-			func() win.HWND {
-				field := value.FieldByName("hwndNormalHdr")
-				if !field.IsValid() || !field.CanAddr() {
-					return 0
-				}
-				return win.HWND(reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Uint())
-			}(),
-		}
-
-		var cursor win.POINT
-		if !win.GetCursorPos(&cursor) {
-			return false
-		}
-
-		for _, headerHandle := range headerHandles {
-			if headerHandle == 0 {
-				continue
-			}
-			var rect win.RECT
-			if !win.GetWindowRect(headerHandle, &rect) {
-				continue
-			}
-			if cursor.X >= rect.Left && cursor.X < rect.Right && cursor.Y >= rect.Top && cursor.Y < rect.Bottom {
-				return true
-			}
-		}
-
-		return false
-	}
-	updateContextMenuVisibility := func() {
-		headerMenu := isHeaderContextMenu()
-		for _, action := range []*walk.Action{autoAdjustColumnsAction} {
-			if action == nil {
-				continue
-			}
-			if err := action.SetVisible(headerMenu); err != nil {
-				log.Println(err)
-			}
-		}
-		for _, action := range []*walk.Action{devicePolicyAction, hardwarePropertiesAction, registryParametersAction} {
-			if action == nil {
-				continue
-			}
-			if err := action.SetVisible(!headerMenu); err != nil {
-				log.Println(err)
-			}
-		}
-	}
-	if contextMenu := mw.tv.ContextMenu(); contextMenu != nil {
-		contextMenu.InitPopup().Attach(updateContextMenuVisibility)
 	}
 	mw.autoAdjustColumns(true)
 	applyDefaultSort()
@@ -858,14 +788,18 @@ func (mw *MyMainWindow) tableAutoColumns() []tableAutoColumn {
 }
 
 func (mw *MyMainWindow) autoAdjustColumns(force bool) {
-	model, ok := mw.tv.Model().(*Model)
-	if !ok || model == nil {
+	items, ok := currentDevicesFromTableModel(mw.tv.Model())
+	if !ok && mw.model != nil {
+		items = mw.model.items
+		ok = true
+	}
+	if !ok {
 		return
 	}
 
 	autoColumns := mw.tableAutoColumns()
 	columnInputs := make([]tableAutoWidthColumnInput, len(autoColumns))
-	valueRowLimit := len(model.items)
+	valueRowLimit := len(items)
 	if valueRowLimit > tableAutoWidthRowLimit {
 		valueRowLimit = tableAutoWidthRowLimit
 	}
@@ -877,7 +811,7 @@ func (mw *MyMainWindow) autoAdjustColumns(force bool) {
 			Values:   make([]string, 0, valueRowLimit),
 		}
 		for rowIndex := 0; rowIndex < valueRowLimit; rowIndex++ {
-			columnInputs[i].Values = append(columnInputs[i].Values, column.Value(model.items[rowIndex]))
+			columnInputs[i].Values = append(columnInputs[i].Values, column.Value(items[rowIndex]))
 		}
 	}
 
@@ -914,6 +848,19 @@ func (mw *MyMainWindow) autoAdjustColumns(force bool) {
 		columns.At(i).SetWidth(targetWidths[i])
 	}
 	mw.autoWidths = targetWidths
+}
+
+func currentDevicesFromTableModel(model any) ([]Device, bool) {
+	switch typedModel := model.(type) {
+	case *Model:
+		return typedModel.items, true
+	case interface{ Items() any }:
+		items := typedModel.Items()
+		if devices, ok := items.([]Device); ok {
+			return devices, true
+		}
+	}
+	return nil, false
 }
 
 type Model struct {
