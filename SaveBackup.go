@@ -25,11 +25,11 @@ var tmplProperty = template.Must(packageInfo.Parse(string(`[{{.RegPath}}\Interru
 
 `)))
 
-func createRegFile(dlg *walk.Dialog, regpath string, item Device) string {
+func createRegFile(dlg *walk.Dialog, regpath string, item *Device) string {
 	var buf bytes.Buffer
 	err := tmplProperty.Execute(&buf, struct {
 		RegPath               string
-		Device                Device
+		Device                *Device
 		AssignmentSetOverride string
 	}{
 		regpath,

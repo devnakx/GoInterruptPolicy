@@ -405,7 +405,7 @@ func RunDialog(owner walk.Form, devices []Device) (int, Device, error) {
 											walk.MsgBox(dlg, "Error", err.Error(), walk.MsgBoxIconError)
 										}
 
-										reg_file_value.WriteString(createRegFile(dlg, regPath, *device))
+										reg_file_value.WriteString(createRegFile(dlg, regPath, &devices[i]))
 									}
 
 									path, err := os.Getwd()
