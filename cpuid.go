@@ -1,3 +1,5 @@
+//go:build !AMD && !Intel
+
 package main
 
 import "github.com/intel-go/cpuid"
