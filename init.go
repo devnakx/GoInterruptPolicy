@@ -102,7 +102,7 @@ func Has(b, flag Bits) bool    { return b&flag != 0 }
 // https://gist.github.com/chiro-hiro/2674626cebbcb5a676355b7aaac4972d
 func i64tob(val uint64) []byte {
 	r := make([]byte, 8)
-	for i := uint64(0); i < 8; i++ {
+	for i := range uint64(8) {
 		r[i] = byte((val >> (i * 8)) & 0xff)
 	}
 	return r
@@ -110,7 +110,7 @@ func i64tob(val uint64) []byte {
 
 func btoi64(val []byte) uint64 {
 	r := uint64(0)
-	for i := uint64(0); i < 8; i++ {
+	for i := range uint64(8) {
 		r |= uint64(val[i]) << (8 * i)
 	}
 	return r
@@ -118,7 +118,7 @@ func btoi64(val []byte) uint64 {
 
 func btoi32(val []byte) uint32 {
 	r := uint32(0)
-	for i := uint32(0); i < 4; i++ {
+	for i := range uint32(4) {
 		r |= uint32(val[i]) << (8 * i)
 	}
 	return r
@@ -126,7 +126,7 @@ func btoi32(val []byte) uint32 {
 
 func btoi16(val []byte) uint16 {
 	r := uint16(0)
-	for i := uint16(0); i < 2; i++ {
+	for i := range uint16(2) {
 		r |= uint16(val[i]) << (8 * i)
 	}
 	return r
