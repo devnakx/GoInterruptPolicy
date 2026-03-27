@@ -16,7 +16,7 @@ IF exist %filename%.exe (
 )
 
 : Build https://golang.org/cmd/go/
-go build -tags debug -buildvcs=false -o %filename%_debug.exe
+@REM go build -tags debug -buildvcs=false -o %filename%_debug.exe
 go build -ldflags="-w -s -H windowsgui" -o %filename%.exe
 
 FOR /F "usebackq" %%A IN ('%filename%.exe') DO SET /A size=%%~zA

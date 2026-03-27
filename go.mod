@@ -1,6 +1,6 @@
 module github.com/spddl/GoInterruptPolicy
 
-go 1.25.4
+go 1.26.0
 
 require (
 	github.com/intel-go/cpuid v0.0.0-20220614022739-219e067757cb

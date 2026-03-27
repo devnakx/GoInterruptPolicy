@@ -49,26 +49,26 @@ type DevInfoData struct {
 	_         uintptr
 }
 
-// DevInfoListDetailData is a structure for detailed information on a device information set (used for SetupDiGetDeviceInfoListDetail which supercedes the functionality of SetupDiGetDeviceInfoListClass).
-type DevInfoListDetailData struct {
-	size                uint32
-	ClassGUID           windows.GUID
-	RemoteMachineHandle windows.Handle
-	remoteMachineName   [SP_MAX_MACHINENAME_LENGTH]uint16
-}
+// // DevInfoListDetailData is a structure for detailed information on a device information set (used for SetupDiGetDeviceInfoListDetail which supercedes the functionality of SetupDiGetDeviceInfoListClass).
+// type DevInfoListDetailData struct {
+// 	size                uint32
+// 	ClassGUID           windows.GUID
+// 	RemoteMachineHandle windows.Handle
+// 	remoteMachineName   [SP_MAX_MACHINENAME_LENGTH]uint16
+// }
 
-func (data *DevInfoListDetailData) GetRemoteMachineName() string {
-	return windows.UTF16ToString(data.remoteMachineName[:])
-}
+// func (data *DevInfoListDetailData) GetRemoteMachineName() string {
+// 	return windows.UTF16ToString(data.remoteMachineName[:])
+// }
 
-func (data *DevInfoListDetailData) SetRemoteMachineName(remoteMachineName string) error {
-	str, err := syscall.UTF16FromString(remoteMachineName)
-	if err != nil {
-		return err
-	}
-	copy(data.remoteMachineName[:], str)
-	return nil
-}
+// func (data *DevInfoListDetailData) SetRemoteMachineName(remoteMachineName string) error {
+// 	str, err := syscall.UTF16FromString(remoteMachineName)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	copy(data.remoteMachineName[:], str)
+// 	return nil
+// }
 
 // DI_FUNCTION is function type for device installer
 type DI_FUNCTION uint32
@@ -277,6 +277,8 @@ const (
 	SPDRP_FRIENDLYNAME                SPDRP = 0x0000000C // FriendlyName (R/W)
 	SPDRP_LOCATION_INFORMATION        SPDRP = 0x0000000D // LocationInformation (R/W)
 	SPDRP_PHYSICAL_DEVICE_OBJECT_NAME SPDRP = 0x0000000E // PhysicalDeviceObjectName (R)
+	SPDRP_CLASS                       SPDRP = 0x00000007 // Class (R--tied to ClassGUID)
+	SPDRP_CLASSGUID                   SPDRP = 0x00000008 // ClassGUID (R/W)
 )
 
 type DEVPROPKEY struct {

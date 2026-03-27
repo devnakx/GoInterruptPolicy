@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"strings"
 	"text/template"
@@ -26,7 +25,7 @@ var tmplProperty = template.Must(packageInfo.Parse(string(`[{{.RegPath}}\Interru
 
 `)))
 
-func createRegFile(dlg *walk.Dialog, regpath string, item *Device) string {
+func createRegFile(dlg *walk.Dialog, regpath string, item Device) string {
 	var buf bytes.Buffer
 	err := tmplProperty.Execute(&buf, struct {
 		RegPath               string
@@ -34,8 +33,8 @@ func createRegFile(dlg *walk.Dialog, regpath string, item *Device) string {
 		AssignmentSetOverride string
 	}{
 		regpath,
-		*item,
-		addComma(fmt.Sprintf("%x", item.AssignmentSetOverride)),
+		item,
+		addComma(ToLittleEndian(uint64(item.AssignmentSetOverride))),
 	})
 
 	if err != nil {
